@@ -1,0 +1,232 @@
+{
+  "version": 1,
+  "package": "bindings",
+  "output": "bindings/generated.goml",
+  "go_package": "adapter",
+  "go_output": "adapter/generated.go",
+  "go_import_path": "example.com/goml-ecosystem/postgres/adapter",
+  "types": [
+    {
+      "name": "NativeControl",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "Control"
+    },
+    {
+      "name": "NativeSession",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "Session"
+    },
+    {
+      "name": "NativeValue",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "Value"
+    },
+    {
+      "name": "NativeStatement",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "Statement"
+    },
+    {
+      "name": "NativeColumn",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "Column"
+    },
+    {
+      "name": "NativeRow",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "Row"
+    },
+    {
+      "name": "NativeCursor",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "Cursor"
+    },
+    {
+      "name": "NativeFailure",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "Failure"
+    }
+  ],
+  "functions": [
+    {
+      "name": "raw_new_control",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "BridgeNewControl"
+    },
+    {
+      "name": "raw_cancel",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "Cancel"
+    },
+    {
+      "name": "raw_open",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "BridgeOpen"
+    },
+    {
+      "name": "raw_close",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "BridgeClose"
+    },
+    {
+      "name": "raw_is_closed",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "IsClosed"
+    },
+    {
+      "name": "raw_error_class",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "FailureClass"
+    },
+    {
+      "name": "raw_error_state",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "FailureSQLState"
+    },
+    {
+      "name": "raw_null",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "Null"
+    },
+    {
+      "name": "raw_integer",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "Integer"
+    },
+    {
+      "name": "raw_real",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "Real"
+    },
+    {
+      "name": "raw_text",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "Text"
+    },
+    {
+      "name": "raw_blob",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "Blob"
+    },
+    {
+      "name": "raw_value_kind",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "ValueKind"
+    },
+    {
+      "name": "raw_value_integer",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "ValueInteger"
+    },
+    {
+      "name": "raw_value_real",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "ValueReal"
+    },
+    {
+      "name": "raw_value_text",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "ValueText"
+    },
+    {
+      "name": "raw_value_blob",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "ValueBlob"
+    },
+    {
+      "name": "raw_execute",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "BridgeExecute"
+    },
+    {
+      "name": "raw_query",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "BridgeQuery"
+    },
+    {
+      "name": "raw_prepare",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "BridgePrepare"
+    },
+    {
+      "name": "raw_close_statement",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "BridgeCloseStatement"
+    },
+    {
+      "name": "raw_execute_statement",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "BridgeExecuteStatement"
+    },
+    {
+      "name": "raw_query_statement",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "BridgeQueryStatement"
+    },
+    {
+      "name": "raw_column_name",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "ColumnName"
+    },
+    {
+      "name": "raw_column_type",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "ColumnType"
+    },
+    {
+      "name": "raw_row_values",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "RowValues"
+    },
+    {
+      "name": "raw_row_columns",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "RowColumns"
+    },
+    {
+      "name": "raw_cursor_columns",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "CursorColumns"
+    },
+    {
+      "name": "raw_next",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "BridgeNext"
+    },
+    {
+      "name": "raw_close_cursor",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "BridgeCloseCursor"
+    },
+    {
+      "name": "raw_begin",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "BridgeBegin"
+    },
+    {
+      "name": "raw_commit",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "BridgeCommit"
+    },
+    {
+      "name": "raw_rollback",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "BridgeRollback"
+    },
+    {
+      "name": "raw_resources",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "Resources"
+    },
+    {
+      "name": "raw_error_is_nil",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "FailureIsNil"
+    },
+    {
+      "name": "raw_error_message",
+      "import_path": "example.com/goml-ecosystem/postgres/adapter",
+      "symbol": "FailureMessage"
+    }
+  ]
+}

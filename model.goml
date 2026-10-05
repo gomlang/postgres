@@ -1,0 +1,100 @@
+package postgres;
+
+use ecosystem::postgres::bindings as native;
+use ecosystem::sql::{Value, Params, Row, Column, Error, ErrorKind};
+use std::bytes::{Bytes};
+use std::ffi;
+
+fn check(error: native::NativeFailure) -> Result[(), Error] {
+    if native::raw_error_is_nil(error) {
+        return Result::Ok(())
+    }
+    let kind = match native::raw_error_class(error) {
+        1 => ErrorKind::Closed,
+        2 => ErrorKind::Busy,
+        3 => ErrorKind::Argument,
+        4 => ErrorKind::Conversion,
+        5 => ErrorKind::Timeout,
+        6 => ErrorKind::Cancelled,
+        _ => ErrorKind::Backend,
+    };
+    let message = ffi::string_text(native::raw_error_message(error)).unwrap_or(
+        "non UTF-8 PostgreSQL error",
+    );
+    let state = ffi::string_text(native::raw_error_state(error)).unwrap_or("");
+    let source = if state == "" {
+        message
+    } else {
+        "SQLSTATE " + state + ": " + message
+    };
+    Result::Err(
+        Error { kind, message: "PostgreSQL operation failed", source: Option::Some(source) },
+    )
+}
+
+fn encode_value(value: Value) -> native::NativeValue {
+    match value {
+        Value::Null => native::raw_null(),
+        Value::Integer(number) => native::raw_integer(number),
+        Value::Real(number) => native::raw_real(number),
+        Value::Text(text) => native::raw_text(ffi::string_from_text(text)),
+        Value::TextBytes(data) => native::raw_text(ffi::string_from_bytes(data)),
+        Value::Blob(data) => native::raw_blob(ffi::slice_from_vec_copy(data.to_vec())),
+    }
+}
+
+fn encode_params(params: Params) -> Result[ffi::RawSlice[native::NativeValue], Error] {
+    match params {
+        Params::Named(_) => Result::Err(
+            Error::new(ErrorKind::Argument, "PostgreSQL requires positional $1 parameters"),
+        ),
+        Params::Positional(values) => {
+            if values.len() > 65535 {
+                return Result::Err(Error::new(ErrorKind::Limit, "too many PostgreSQL parameters"))
+            }
+            let result = Vec::with_capacity(values.len());
+            for value in values {
+                result.push(encode_value(value));
+            }
+            Result::Ok(ffi::slice_from_vec_copy(result))
+        },
+    }
+}
+
+fn decode_value(value: native::NativeValue) -> Result[Value, Error] {
+    match native::raw_value_kind(value) {
+        0 => Result::Ok(Value::Null),
+        1 => Result::Ok(Value::Integer(native::raw_value_integer(value))),
+        2 => Result::Ok(Value::Real(native::raw_value_real(value))),
+        3 => ffi::string_text(native::raw_value_text(value)).map(Value::Text).map_err(
+            |_| Error::new(ErrorKind::Conversion, "non UTF-8 PostgreSQL text"),
+        ),
+        4 => Result::Ok(
+            Value::Blob(Bytes::from_vec(ffi::slice_to_vec_copy(native::raw_value_blob(value)))),
+        ),
+        _ => Result::Err(Error::new(ErrorKind::Conversion, "unknown PostgreSQL value")),
+    }
+}
+
+fn decode_columns(columns: ffi::RawSlice[native::NativeColumn]) -> Result[Vec[Column], Error] {
+    let result = Vec::new();
+    for column in ffi::slice_to_vec_copy(columns) {
+        let name = ffi::string_text(native::raw_column_name(column)).map_err(
+            |_| Error::new(ErrorKind::Conversion, "non UTF-8 column name"),
+        )?;
+        let declared_type = ffi::string_text(native::raw_column_type(column)).map_err(
+            |_| Error::new(ErrorKind::Conversion, "non UTF-8 column type"),
+        )?;
+        result.push(Column { name, declared_type });
+    }
+    Result::Ok(result)
+}
+
+fn decode_row(row: native::NativeRow) -> Result[Row, Error] {
+    let columns = decode_columns(native::raw_row_columns(row))?;
+    let values = Vec::new();
+    for value in ffi::slice_to_vec_copy(native::raw_row_values(row)) {
+        values.push(decode_value(value)?);
+    }
+    Row::new(columns, values)
+}

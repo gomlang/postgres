@@ -1,0 +1,25 @@
+package main;
+
+use ecosystem::postgres::{PostgresDriver};
+use ecosystem::sql::{Driver, Connection, Executor, Query, Params, Row};
+use std::env;
+use std::testing;
+
+fn main() -> () {
+    let dsn = env::var_structured("GOML_POSTGRES_TEST_DSN").unwrap_or("");
+    if dsn == "" {
+        testing::fail("GOML_POSTGRES_TEST_DSN is required");
+    }
+    let connection = testing::expect_ok(PostgresDriver::new().connect(dsn), "postgres driver");
+    defer {
+        let _ = connection.close();
+    };
+    let query = testing::expect_ok(
+        Query::new("SELECT 42::bigint AS answer", Params::empty()),
+        "query",
+    );
+    let row: Row = testing::expect_ok(connection.query_one(query), "consumer row");
+    let answer: i64 = testing::expect_ok(row.get_named("answer"), "typed answer");
+    testing::assert_eq(answer, 42);
+    println("postgres downstream: 42");
+}

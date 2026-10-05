@@ -1,0 +1,6 @@
+[module]
+path = "downstream::postgres"
+
+[dependencies]
+"ecosystem::postgres" = "0.1.0"
+"ecosystem::sql" = "0.1.0"

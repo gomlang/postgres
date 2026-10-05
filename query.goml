@@ -1,0 +1,85 @@
+package postgres;
+
+use ecosystem::postgres::bindings as native;
+use ecosystem::sql;
+use ecosystem::sql::{Params, Row, Column, Error, Execution};
+use std::ffi;
+
+pub struct Statement {
+    raw: native::NativeStatement,
+}
+
+impl Statement {
+    pub fn close(self: Statement) -> Result[(), Error] {
+        check(native::raw_close_statement(self.raw))
+    }
+
+    pub fn execute(self: Statement, params: Params) -> Result[Execution, Error] {
+        self.execute_with(params, Control::unlimited())
+    }
+
+    pub fn query(self: Statement, params: Params) -> Result[PostgresRows, Error] {
+        self.query_with(params, Control::unlimited())
+    }
+
+    pub fn execute_with(self: Statement, params: Params, control: Control) -> Result[
+        Execution,
+        Error,
+    ] {
+        let values = encode_params(params)?;
+        let (rows_affected, last_insert_id, error) = native::raw_execute_statement(
+            self.raw,
+            values,
+            ffi::slice_from_vec_copy(Vec::new()),
+            control.raw,
+        );
+        check(error)?;
+        Result::Ok(Execution { rows_affected, last_insert_id })
+    }
+
+    pub fn query_with(self: Statement, params: Params, control: Control) -> Result[
+        PostgresRows,
+        Error,
+    ] {
+        let values = encode_params(params)?;
+        let (raw, error) = native::raw_query_statement(
+            self.raw,
+            values,
+            ffi::slice_from_vec_copy(Vec::new()),
+            control.raw,
+        );
+        check(error)?;
+        Result::Ok(PostgresRows { raw })
+    }
+}
+
+pub struct PostgresRows {
+    raw: native::NativeCursor,
+}
+
+impl PostgresRows {
+    pub fn columns(self: PostgresRows) -> Result[Vec[Column], Error] {
+        decode_columns(native::raw_cursor_columns(self.raw))
+    }
+}
+
+impl sql::RowCursor for PostgresRows {
+    fn next(self: PostgresRows) -> Result[Option[Row], Error] {
+        let (present, row, error) = native::raw_next(self.raw);
+        check(error)?;
+        if !present {
+            return Result::Ok(Option::None)
+        }
+        match decode_row(row) {
+            Ok(row) => Result::Ok(Option::Some(row)),
+            Err(error) => {
+                let _ = native::raw_close_cursor(self.raw);
+                Result::Err(error)
+            },
+        }
+    }
+
+    fn close(self: PostgresRows) -> Result[(), Error] {
+        check(native::raw_close_cursor(self.raw))
+    }
+}

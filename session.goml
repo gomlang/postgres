@@ -1,0 +1,278 @@
+package postgres;
+
+use ecosystem::postgres::bindings as native;
+use ecosystem::sql;
+use ecosystem::sql::{Query, Params, Error, ErrorKind, Execution, TransactionMode};
+use std::ffi;
+
+pub struct Control {
+    raw: native::NativeControl,
+}
+
+impl Control {
+    pub fn unlimited() -> Control {
+        let (raw, _) = native::raw_new_control(0);
+        Control { raw }
+    }
+
+    pub fn timeout(milliseconds: i64) -> Result[Control, Error] {
+        let (raw, error) = native::raw_new_control(milliseconds);
+        check(error)?;
+        Result::Ok(Control { raw })
+    }
+
+    pub fn cancel(self: Control) -> () {
+        native::raw_cancel(self.raw)
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum Isolation {
+    ReadCommitted,
+    RepeatableRead,
+    Serializable,
+}
+
+pub struct TransactionOptions {
+    pub isolation: Isolation,
+    pub read_only: bool,
+}
+
+impl TransactionOptions {
+    pub fn standard() -> TransactionOptions {
+        TransactionOptions { isolation: Isolation::ReadCommitted, read_only: false }
+    }
+}
+
+pub struct Resources {
+    pub statements: isize,
+    pub cursors: isize,
+    pub transactions: isize,
+}
+
+pub struct PostgresDriver {}
+
+pub struct PostgresConnection {
+    raw: native::NativeSession,
+}
+
+pub struct PostgresTransaction {
+    raw: native::NativeSession,
+}
+
+impl PostgresDriver {
+    pub fn new() -> PostgresDriver {
+        PostgresDriver {}
+    }
+}
+
+impl sql::Driver for PostgresDriver {
+    type Connection = PostgresConnection;
+
+    fn connect(self: PostgresDriver, dsn: string) -> Result[PostgresConnection, Error] {
+        PostgresConnection::open(dsn)
+    }
+}
+
+fn execute_session(raw: native::NativeSession, query: Query, control: Control) -> Result[
+    Execution,
+    Error,
+] {
+    let values = encode_params(query.params())?;
+    let (rows_affected, last_insert_id, error) = native::raw_execute(
+        raw,
+        ffi::string_from_text(query.statement()),
+        values,
+        ffi::slice_from_vec_copy(Vec::new()),
+        control.raw,
+    );
+    check(error)?;
+    Result::Ok(Execution { rows_affected, last_insert_id })
+}
+
+fn query_session(raw: native::NativeSession, query: Query, control: Control) -> Result[
+    PostgresRows,
+    Error,
+] {
+    let values = encode_params(query.params())?;
+    let (raw, error) = native::raw_query(
+        raw,
+        ffi::string_from_text(query.statement()),
+        values,
+        ffi::slice_from_vec_copy(Vec::new()),
+        control.raw,
+    );
+    check(error)?;
+    Result::Ok(PostgresRows { raw })
+}
+
+fn prepare_session(raw: native::NativeSession, statement: string, control: Control) -> Result[
+    Statement,
+    Error,
+] {
+    let (raw, error) = native::raw_prepare(raw, ffi::string_from_text(statement), control.raw);
+    check(error)?;
+    Result::Ok(Statement { raw })
+}
+
+impl PostgresConnection {
+    pub fn open(dsn: string) -> Result[PostgresConnection, Error] {
+        PostgresConnection::open_with(dsn, Control::unlimited())
+    }
+
+    pub fn open_with(dsn: string, control: Control) -> Result[PostgresConnection, Error] {
+        let (raw, error) = native::raw_open(ffi::string_from_text(dsn), control.raw);
+        check(error)?;
+        Result::Ok(PostgresConnection { raw })
+    }
+
+    pub fn is_closed(self: PostgresConnection) -> bool {
+        native::raw_is_closed(self.raw)
+    }
+
+    pub fn resources(self: PostgresConnection) -> Resources {
+        let (statements, cursors, transactions) = native::raw_resources(self.raw);
+        Resources { statements, cursors, transactions }
+    }
+
+    pub fn execute_with(self: PostgresConnection, query: Query, control: Control) -> Result[
+        Execution,
+        Error,
+    ] {
+        execute_session(self.raw, query, control)
+    }
+
+    pub fn query_with(self: PostgresConnection, query: Query, control: Control) -> Result[
+        PostgresRows,
+        Error,
+    ] {
+        query_session(self.raw, query, control)
+    }
+
+    pub fn prepare(self: PostgresConnection, statement: string) -> Result[Statement, Error] {
+        self.prepare_with(statement, Control::unlimited())
+    }
+
+    pub fn prepare_with(self: PostgresConnection, statement: string, control: Control) -> Result[
+        Statement,
+        Error,
+    ] {
+        prepare_session(self.raw, statement, control)
+    }
+
+    pub fn begin_with(self: PostgresConnection, options: TransactionOptions, control: Control) -> Result[
+        PostgresTransaction,
+        Error,
+    ] {
+        let isolation = match options.isolation {
+            Isolation::ReadCommitted => 0,
+            Isolation::RepeatableRead => 1,
+            Isolation::Serializable => 2,
+        };
+        let (raw, error) = native::raw_begin(self.raw, isolation, options.read_only, control.raw);
+        check(error)?;
+        Result::Ok(PostgresTransaction { raw })
+    }
+
+    pub fn transaction[T](
+        self: PostgresConnection,
+        callback: (PostgresTransaction) -> Result[T, Error],
+    ) -> Result[T, Error] {
+        let tx = self.begin_with(TransactionOptions::standard(), Control::unlimited())?;
+        defer {
+            let _ = sql::Transaction::rollback(tx);
+        };
+        let result = callback(tx)?;
+        sql::Transaction::commit(tx)?;
+        Result::Ok(result)
+    }
+}
+
+impl PostgresTransaction {
+    pub fn execute_with(self: PostgresTransaction, query: Query, control: Control) -> Result[
+        Execution,
+        Error,
+    ] {
+        execute_session(self.raw, query, control)
+    }
+
+    pub fn query_with(self: PostgresTransaction, query: Query, control: Control) -> Result[
+        PostgresRows,
+        Error,
+    ] {
+        query_session(self.raw, query, control)
+    }
+
+    pub fn prepare(self: PostgresTransaction, statement: string) -> Result[Statement, Error] {
+        prepare_session(self.raw, statement, Control::unlimited())
+    }
+
+    pub fn prepare_with(self: PostgresTransaction, statement: string, control: Control) -> Result[
+        Statement,
+        Error,
+    ] {
+        prepare_session(self.raw, statement, control)
+    }
+
+    pub fn commit_with(self: PostgresTransaction, control: Control) -> Result[(), Error] {
+        check(native::raw_commit(self.raw, control.raw))
+    }
+
+    pub fn close(self: PostgresTransaction) -> Result[(), Error] {
+        check(native::raw_rollback(self.raw))
+    }
+}
+
+impl sql::Executor for PostgresConnection {
+    type Cursor = PostgresRows;
+
+    fn execute(self: PostgresConnection, query: Query) -> Result[Execution, Error] {
+        self.execute_with(query, Control::unlimited())
+    }
+
+    fn query(self: PostgresConnection, query: Query) -> Result[PostgresRows, Error] {
+        self.query_with(query, Control::unlimited())
+    }
+}
+
+impl sql::Executor for PostgresTransaction {
+    type Cursor = PostgresRows;
+
+    fn execute(self: PostgresTransaction, query: Query) -> Result[Execution, Error] {
+        self.execute_with(query, Control::unlimited())
+    }
+
+    fn query(self: PostgresTransaction, query: Query) -> Result[PostgresRows, Error] {
+        self.query_with(query, Control::unlimited())
+    }
+}
+
+impl sql::Connection for PostgresConnection {
+    type Tx = PostgresTransaction;
+
+    fn begin(self: PostgresConnection, mode: TransactionMode) -> Result[PostgresTransaction, Error] {
+        if mode != TransactionMode::Deferred {
+            return Result::Err(
+                Error::new(
+                    ErrorKind::Argument,
+                    "PostgreSQL does not support SQLite transaction lock modes",
+                ),
+            )
+        }
+        self.begin_with(TransactionOptions::standard(), Control::unlimited())
+    }
+
+    fn close(self: PostgresConnection) -> Result[(), Error] {
+        check(native::raw_close(self.raw))
+    }
+}
+
+impl sql::Transaction for PostgresTransaction {
+    fn commit(self: PostgresTransaction) -> Result[(), Error] {
+        self.commit_with(Control::unlimited())
+    }
+
+    fn rollback(self: PostgresTransaction) -> Result[(), Error] {
+        self.close()
+    }
+}

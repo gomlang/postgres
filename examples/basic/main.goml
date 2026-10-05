@@ -1,0 +1,34 @@
+package main;
+
+use ecosystem::postgres::{PostgresDriver};
+use ecosystem::sql::{Driver, Connection, Executor, Query, Params, Value, Row, Error};
+use std::env;
+use std::testing;
+
+fn example() -> Result[string, Error] {
+    let dsn = env::var_structured("GOML_POSTGRES_TEST_DSN").unwrap_or("");
+    let db = PostgresDriver::new().connect(dsn)?;
+    defer {
+        let _ = db.close();
+    };
+    db.execute(
+        Query::new("CREATE TEMP TABLE users(id bigint PRIMARY KEY,name text)", Params::empty())?,
+    )?;
+    db.execute(
+        Query::new(
+            "INSERT INTO users VALUES($1,$2)",
+            Params::positional(Vec::from_array([Value::Integer(7), Value::Text("Ada")])),
+        )?,
+    )?;
+    let row: Row = db.query_one(
+        Query::new(
+            "SELECT name FROM users WHERE id=$1",
+            Params::positional(Vec::from_array([Value::Integer(7)])),
+        )?,
+    )?;
+    row.get(0)
+}
+
+fn main() -> () {
+    println(testing::expect_ok(example(), "PostgreSQL example"));
+}

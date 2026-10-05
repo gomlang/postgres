@@ -1,0 +1,278 @@
+package tests;
+
+use ecosystem::postgres::{PostgresDriver, PostgresConnection, Control, Isolation, TransactionOptions};
+use ecosystem::sql::{Driver, Connection, Executor, Transaction, RowCursor, Query, Params, Value, ToValue, Row, Error, ErrorKind, TransactionMode, CollectionLimits};
+use std::bytes::{Bytes};
+use std::env;
+use std::testing;
+
+fn live() -> PostgresConnection {
+    let dsn = env::var_structured("GOML_POSTGRES_TEST_DSN").unwrap_or("");
+    if dsn == "" {
+        testing::fail("GOML_POSTGRES_TEST_DSN is required for live PostgreSQL tests");
+    }
+    testing::expect_ok(PostgresDriver::new().connect(dsn), "connect PostgreSQL")
+}
+
+fn query(text: string) -> Query {
+    testing::expect_ok(Query::new(text, Params::empty()), text)
+}
+
+fn bound(text: string, values: Vec[Value]) -> Query {
+    testing::expect_ok(Query::new(text, Params::positional(values)), text)
+}
+
+#[test]
+fn postgres_values_bindings_metadata_and_owned_rows() -> () {
+    let db = live();
+    defer {
+        let _ = db.close();
+    };
+    testing::assert_ok(
+        db.execute(
+            query("CREATE TEMP TABLE goml_values(id bigint PRIMARY KEY, body bytea, name text)"),
+        ),
+    );
+    let bytes = Bytes::from_vec(Vec::from_array([0, 255, 13, 10, 128]));
+    let insert = bound(
+        "INSERT INTO goml_values VALUES($1,$2,$3)",
+        Vec::from_array(
+            [Value::Integer(7), Value::Blob(bytes), Value::Text("é😀'); DROP TABLE goml_values;--")],
+        ),
+    );
+    bytes.clear();
+    let execution = testing::expect_ok(db.execute(insert), "bound insert");
+    testing::assert_eq(execution.rows_affected, 1);
+    testing::assert_eq(execution.last_insert_id, 0);
+    let row: Row = testing::expect_ok(
+        db.query_one(
+            bound(
+                "SELECT id,body,name FROM goml_values WHERE id=$1",
+                Vec::from_array([Value::Integer(7)]),
+            ),
+        ),
+        "typed row",
+    );
+    let id: i64 = testing::expect_ok(row.get_named("id"), "id");
+    testing::assert_eq(id, 7);
+    let data: Bytes = testing::expect_ok(row.get(1), "body");
+    testing::assert(data.to_vec() == Vec::from_array([0, 255, 13, 10, 128]));
+    data.clear();
+    let retained: Bytes = testing::expect_ok(row.get(1), "saved row");
+    testing::assert_eq(retained.len(), 5);
+    let name: string = testing::expect_ok(row.get(2), "name");
+    testing::assert_eq(name, "é😀'); DROP TABLE goml_values;--");
+    let types: Row = testing::expect_ok(
+        db.query_one(
+            query(
+                "SELECT NULL::text AS absent,''::text AS empty,''::bytea AS binary,true AS yes,12345678901234567890.25::numeric AS exact,'{\"x\":1}'::jsonb AS doc",
+            ),
+        ),
+        "types",
+    );
+    let absent: Option[string] = testing::expect_ok(types.get(0), "NULL");
+    testing::assert_none(absent);
+    let empty: string = testing::expect_ok(types.get(1), "empty text");
+    testing::assert_eq(empty, "");
+    let blob: Bytes = testing::expect_ok(types.get(2), "empty bytea");
+    testing::assert_eq(blob.len(), 0);
+    let yes: bool = testing::expect_ok(types.get(3), "boolean");
+    testing::assert(yes);
+    let booleans: Row = testing::expect_ok(
+        db.query_one(
+            bound(
+                "SELECT ($1::bigint <> 0),($2::bigint <> 0),$1::bigint,$2::bigint",
+                Vec::from_array([true.to_value(), false.to_value()]),
+            ),
+        ),
+        "shared Boolean parameter conversion",
+    );
+    let bound_true: bool = testing::expect_ok(booleans.get(0), "true parameter");
+    let bound_false: bool = testing::expect_ok(booleans.get(1), "false parameter");
+    let integer_one: i64 = testing::expect_ok(booleans.get(2), "integer stays integer");
+    let integer_zero: i64 = testing::expect_ok(booleans.get(3), "zero stays integer");
+    testing::assert(bound_true);
+    testing::assert(!bound_false);
+    testing::assert_eq(integer_one, 1);
+    testing::assert_eq(integer_zero, 0);
+    let exact: string = testing::expect_ok(types.get(4), "numeric");
+    testing::assert_eq(exact, "12345678901234567890.25");
+    let doc: string = testing::expect_ok(types.get(5), "json");
+    testing::assert_eq(doc, "{\"x\": 1}");
+    let cursor = testing::expect_ok(
+        db.query(query("SELECT id AS duplicate,id AS duplicate FROM goml_values WHERE false")),
+        "empty cursor",
+    );
+    let columns = testing::expect_ok(cursor.columns(), "metadata");
+    testing::assert_eq(columns.len(), 2);
+    testing::assert_eq(columns[0].declared_type, "INT8");
+    testing::assert_none(testing::expect_ok(cursor.next(), "EOF"));
+    testing::assert_none(testing::expect_ok(cursor.next(), "repeated EOF"));
+    testing::assert_ok(cursor.close());
+}
+
+#[test]
+fn postgres_generic_collection_and_statement_cleanup() -> () {
+    let db = live();
+    defer {
+        let _ = db.close();
+    };
+    testing::assert_ok(db.execute(query("CREATE TEMP TABLE goml_prepared(id bigint PRIMARY KEY)")));
+    let insert = testing::expect_ok(
+        db.prepare("INSERT INTO goml_prepared VALUES($1)"),
+        "prepare insert",
+    );
+    let result = testing::expect_ok(
+        insert.execute(Params::positional(Vec::from_array([Value::Integer(1)]))),
+        "statement execute",
+    );
+    testing::assert_eq(result.rows_affected, 1);
+    testing::assert_err(insert.execute(Params::positional(Vec::from_array([Value::Integer(1)]))));
+    testing::assert_ok(insert.execute(Params::positional(Vec::from_array([Value::Integer(2)]))));
+    testing::assert_ok(insert.close());
+    let statement = testing::expect_ok(db.prepare("SELECT $1::bigint AS id"), "prepare");
+    for number in[1, 2, 3] {
+        let rows = testing::expect_ok(
+            statement.query(Params::positional(Vec::from_array([Value::Integer(number)]))),
+            "prepared query",
+        );
+        testing::assert_eq(
+            testing::expect_err(db.execute(query("SELECT 1")), "busy connection").kind,
+            ErrorKind::Busy,
+        );
+        let row = testing::expect_some(testing::expect_ok(rows.next(), "next"), "row");
+        let value: i64 = testing::expect_ok(row.get(0), "value");
+        testing::assert_eq(value, number);
+        testing::assert_ok(rows.close());
+        testing::assert_ok(rows.close());
+    }
+    testing::assert_ok(statement.close());
+    testing::assert_ok(statement.close());
+    testing::assert_err(statement.query(Params::empty()));
+    let one: Result[Row, Error] = db.query_one(query("SELECT 1 WHERE false"));
+    testing::assert_eq(testing::expect_err(one, "no rows").kind, ErrorKind::NoRows);
+    let many: Result[Row, Error] = db.query_one(query("SELECT i FROM generate_series(1,2) i"));
+    testing::assert_eq(testing::expect_err(many, "many rows").kind, ErrorKind::MultipleRows);
+    let limited: Result[Vec[Row], Error] = db.query_all(
+        query("SELECT i FROM generate_series(1,3) i"),
+        2,
+    );
+    testing::assert_eq(testing::expect_err(limited, "row limit").kind, ErrorKind::Limit);
+    let bytes: Result[Vec[Row], Error] = db.query_all_with_limits(
+        query("SELECT 'hello'::text"),
+        CollectionLimits { max_rows: 1, max_bytes: 4 },
+    );
+    testing::assert_eq(testing::expect_err(bytes, "payload limit").kind, ErrorKind::Limit);
+    let rows: Vec[Row] = testing::expect_ok(
+        db.query_all(query("SELECT i FROM generate_series(1,3) i"), 3),
+        "exact rows",
+    );
+    testing::assert_eq(rows.len(), 3);
+    testing::assert_eq(db.resources().cursors, 0);
+    testing::assert_eq(db.resources().statements, 0);
+}
+
+#[test]
+fn postgres_transactions_recover_and_rollback_callbacks() -> () {
+    let db = live();
+    defer {
+        let _ = db.close();
+    };
+    testing::assert_ok(db.execute(query("CREATE TEMP TABLE goml_tx(id integer PRIMARY KEY)")));
+    testing::assert_err(db.begin(TransactionMode::Immediate));
+    let tx = testing::expect_ok(db.begin(TransactionMode::Deferred), "begin");
+    testing::assert_ok(tx.execute(query("INSERT INTO goml_tx VALUES(1)")));
+    testing::assert_eq(
+        testing::expect_err(db.execute(query("SELECT 1")), "root while transaction").kind,
+        ErrorKind::Busy,
+    );
+    testing::assert_ok(tx.commit());
+    testing::assert_ok(tx.rollback());
+    testing::assert_err(tx.execute(query("SELECT 1")));
+    let failure: Result[(), Error] = db.transaction(
+        |tx| {
+            tx.execute(query("INSERT INTO goml_tx VALUES(2)"))?;
+            Result::Err(ecosystem::sql::Error::new(ErrorKind::Argument, "callback failure"))
+        },
+    );
+    testing::assert_eq(
+        testing::expect_err(failure, "rollback callback").message,
+        "callback failure",
+    );
+    let tx = testing::expect_ok(db.begin(TransactionMode::Deferred), "begin duplicate");
+    testing::assert_ok(tx.execute(query("INSERT INTO goml_tx VALUES(3)")));
+    let error = testing::expect_err(
+        tx.execute(query("INSERT INTO goml_tx VALUES(1)")),
+        "constraint",
+    );
+    testing::assert_eq(error.kind, ErrorKind::Backend);
+    testing::assert(error.to_string().contains("23505"));
+    testing::assert_err(tx.commit());
+    let row: Row = testing::expect_ok(
+        db.query_one(query("SELECT count(*) FROM goml_tx")),
+        "after rollback",
+    );
+    let count: i64 = testing::expect_ok(row.get(0), "count");
+    testing::assert_eq(count, 1);
+    let tx = testing::expect_ok(
+        db.begin_with(
+            TransactionOptions { isolation: Isolation::Serializable, read_only: true },
+            Control::unlimited(),
+        ),
+        "read only",
+    );
+    let row: Row = testing::expect_ok(
+        tx.query_one(query("SHOW transaction_isolation")),
+        "isolation",
+    );
+    let isolation: string = testing::expect_ok(row.get(0), "text");
+    testing::assert_eq(isolation, "serializable");
+    testing::assert_ok(tx.rollback());
+    testing::assert_eq(db.resources().transactions, 0);
+}
+
+#[test]
+fn postgres_controls_errors_and_sql_boundaries() -> () {
+    let db = live();
+    defer {
+        let _ = db.close();
+    };
+    testing::assert_err(Control::timeout(-1));
+    let cancelled = Control::unlimited();
+    cancelled.cancel();
+    testing::assert_eq(
+        testing::expect_err(db.execute_with(query("SELECT 1"), cancelled), "cancelled").kind,
+        ErrorKind::Cancelled,
+    );
+    for text in["BEGIN", "; COMMIT", "/*x/*y*/z*/ ROLLBACK"] {
+        testing::assert_eq(
+            testing::expect_err(db.execute(query(text)), "managed SQL").kind,
+            ErrorKind::Argument,
+        );
+    }
+    testing::assert_err(db.execute(query("SELECT 1;SELECT 2")));
+    let named = testing::expect_ok(
+        Query::new("SELECT $1", Params::named(Vec::from_array([("x", Value::Integer(1))]))),
+        "named query",
+    );
+    testing::assert_eq(
+        testing::expect_err(db.execute(named), "named unsupported").kind,
+        ErrorKind::Argument,
+    );
+    let bad = bound(
+        "SELECT $1::text",
+        Vec::from_array([Value::TextBytes(Bytes::from_vec(Vec::from_array([97, 0, 98])))]),
+    );
+    testing::assert_eq(testing::expect_err(db.execute(bad), "NUL text").kind, ErrorKind::Conversion);
+    let control = testing::expect_ok(Control::timeout(30), "timeout");
+    defer control.cancel();
+    testing::assert_eq(
+        testing::expect_err(db.execute_with(query("SELECT pg_sleep(5)"), control), "deadline").kind,
+        ErrorKind::Timeout,
+    );
+    if !db.is_closed() {
+        let _: Row = testing::expect_ok(db.query_one(query("SELECT 1")), "recovered");
+    }
+    testing::assert_ok(db.close());
+    testing::assert(db.is_closed());
+}
