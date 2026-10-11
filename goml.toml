@@ -2,7 +2,7 @@
 path = "ecosystem::postgres"
 
 [dependencies]
-"ecosystem::sql" = "0.1.0"
+"ecosystem::sql" = true
 
 [native]
 go-module = "example.com/goml-ecosystem/postgres"
