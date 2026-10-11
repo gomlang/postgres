@@ -155,18 +155,18 @@ precedence over timeout/cancellation; the native error chain retains both causes
 
 ## Verification
 
-Go 1.26 and the source-built GoML toolchain with unversioned registry support pinned in [verification/ci/toolchain.json](https://github.com/gomlang/verification/blob/main/ci/toolchain.json) are the validation baseline. No toolchain modifications
+Go 1.26 and the source-built GoML toolchain with unversioned registry support pinned in [workflows/ci/toolchain.json](https://github.com/gomlang/workflows/blob/main/ci/toolchain.json) are the validation baseline. No toolchain modifications
 are required. Tests intentionally fail without `GOML_POSTGRES_TEST_DSN`: the live
 PostgreSQL gate cannot silently pass without a database. Use an isolated PostgreSQL
 16 database. Tests use temporary tables except for one uniquely named rollback
 check that removes its own table.
 
-With sibling `verification`, `sql`, and `sqlite` checkouts available, download
+With sibling `workflows`, `sql`, and `sqlite` checkouts available, download
 the complete native dependency closure before verification. This includes the
 SQLite adapter reached through the SQL library and the independent fixture.
 
 ```sh
-python3 ../verification/ci/ecosystem.py native --libraries .. --module postgres
+python3 ../workflows/ci/ecosystem.py native --libraries .. --module postgres
 # Recreate the checked-in bridge from its explicit allowlist.
 goml bind-go bindings.json
 python3 scripts/with-postgres.py go test ./adapter -count=1
