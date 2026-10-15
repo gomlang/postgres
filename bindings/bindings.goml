@@ -26,52 +26,52 @@ pub extern type NativeStatement;
 #[go_type("example.com/goml-ecosystem/postgres/adapter", "Value")]
 pub extern type NativeValue;
 
-#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "GomlBind_raw_begin")]
+#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "BridgeBegin")]
 pub extern fn raw_begin(p0: NativeSession, p1: isize, p2: bool, p3: NativeControl) -> (
     NativeSession,
     NativeFailure,
 );
 
-#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "GomlBind_raw_blob")]
+#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "Blob")]
 pub extern fn raw_blob(p0: ffi::RawSlice[u8]) -> NativeValue;
 
-#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "GomlBind_raw_cancel")]
+#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "Cancel")]
 pub extern fn raw_cancel(p0: NativeControl) -> ();
 
-#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "GomlBind_raw_close")]
+#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "BridgeClose")]
 pub extern fn raw_close(p0: NativeSession) -> NativeFailure;
 
-#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "GomlBind_raw_close_cursor")]
+#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "BridgeCloseCursor")]
 pub extern fn raw_close_cursor(p0: NativeCursor) -> NativeFailure;
 
-#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "GomlBind_raw_close_statement")]
+#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "BridgeCloseStatement")]
 pub extern fn raw_close_statement(p0: NativeStatement) -> NativeFailure;
 
-#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "GomlBind_raw_column_name")]
+#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "ColumnName")]
 pub extern fn raw_column_name(p0: NativeColumn) -> ffi::String;
 
-#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "GomlBind_raw_column_type")]
+#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "ColumnType")]
 pub extern fn raw_column_type(p0: NativeColumn) -> ffi::String;
 
-#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "GomlBind_raw_commit")]
+#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "BridgeCommit")]
 pub extern fn raw_commit(p0: NativeSession, p1: NativeControl) -> NativeFailure;
 
-#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "GomlBind_raw_cursor_columns")]
+#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "CursorColumns")]
 pub extern fn raw_cursor_columns(p0: NativeCursor) -> ffi::RawSlice[NativeColumn];
 
-#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "GomlBind_raw_error_class")]
+#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "FailureClass")]
 pub extern fn raw_error_class(p0: NativeFailure) -> isize;
 
-#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "GomlBind_raw_error_is_nil")]
+#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "FailureIsNil")]
 pub extern fn raw_error_is_nil(p0: NativeFailure) -> bool;
 
-#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "GomlBind_raw_error_message")]
+#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "FailureMessage")]
 pub extern fn raw_error_message(p0: NativeFailure) -> ffi::String;
 
-#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "GomlBind_raw_error_state")]
+#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "FailureSQLState")]
 pub extern fn raw_error_state(p0: NativeFailure) -> ffi::String;
 
-#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "GomlBind_raw_execute")]
+#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "BridgeExecute")]
 pub extern fn raw_execute(
     p0: NativeSession,
     p1: ffi::String,
@@ -80,7 +80,7 @@ pub extern fn raw_execute(
     p4: NativeControl,
 ) -> (i64, i64, NativeFailure);
 
-#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "GomlBind_raw_execute_statement")]
+#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "BridgeExecuteStatement")]
 pub extern fn raw_execute_statement(
     p0: NativeStatement,
     p1: ffi::RawSlice[NativeValue],
@@ -88,31 +88,31 @@ pub extern fn raw_execute_statement(
     p3: NativeControl,
 ) -> (i64, i64, NativeFailure);
 
-#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "GomlBind_raw_integer")]
+#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "Integer")]
 pub extern fn raw_integer(p0: i64) -> NativeValue;
 
-#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "GomlBind_raw_is_closed")]
+#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "IsClosed")]
 pub extern fn raw_is_closed(p0: NativeSession) -> bool;
 
-#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "GomlBind_raw_new_control")]
+#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "BridgeNewControl")]
 pub extern fn raw_new_control(p0: i64) -> (NativeControl, NativeFailure);
 
-#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "GomlBind_raw_next")]
+#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "BridgeNext")]
 pub extern fn raw_next(p0: NativeCursor) -> (bool, NativeRow, NativeFailure);
 
-#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "GomlBind_raw_null")]
+#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "Null")]
 pub extern fn raw_null() -> NativeValue;
 
-#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "GomlBind_raw_open")]
+#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "BridgeOpen")]
 pub extern fn raw_open(p0: ffi::String, p1: NativeControl) -> (NativeSession, NativeFailure);
 
-#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "GomlBind_raw_prepare")]
+#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "BridgePrepare")]
 pub extern fn raw_prepare(p0: NativeSession, p1: ffi::String, p2: NativeControl) -> (
     NativeStatement,
     NativeFailure,
 );
 
-#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "GomlBind_raw_query")]
+#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "BridgeQuery")]
 pub extern fn raw_query(
     p0: NativeSession,
     p1: ffi::String,
@@ -121,7 +121,7 @@ pub extern fn raw_query(
     p4: NativeControl,
 ) -> (NativeCursor, NativeFailure);
 
-#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "GomlBind_raw_query_statement")]
+#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "BridgeQueryStatement")]
 pub extern fn raw_query_statement(
     p0: NativeStatement,
     p1: ffi::RawSlice[NativeValue],
@@ -129,35 +129,35 @@ pub extern fn raw_query_statement(
     p3: NativeControl,
 ) -> (NativeCursor, NativeFailure);
 
-#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "GomlBind_raw_real")]
+#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "Real")]
 pub extern fn raw_real(p0: f64) -> NativeValue;
 
-#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "GomlBind_raw_resources")]
+#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "Resources")]
 pub extern fn raw_resources(p0: NativeSession) -> (isize, isize, isize);
 
-#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "GomlBind_raw_rollback")]
+#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "BridgeRollback")]
 pub extern fn raw_rollback(p0: NativeSession) -> NativeFailure;
 
-#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "GomlBind_raw_row_columns")]
+#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "RowColumns")]
 pub extern fn raw_row_columns(p0: NativeRow) -> ffi::RawSlice[NativeColumn];
 
-#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "GomlBind_raw_row_values")]
+#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "RowValues")]
 pub extern fn raw_row_values(p0: NativeRow) -> ffi::RawSlice[NativeValue];
 
-#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "GomlBind_raw_text")]
+#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "Text")]
 pub extern fn raw_text(p0: ffi::String) -> NativeValue;
 
-#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "GomlBind_raw_value_blob")]
+#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "ValueBlob")]
 pub extern fn raw_value_blob(p0: NativeValue) -> ffi::RawSlice[u8];
 
-#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "GomlBind_raw_value_integer")]
+#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "ValueInteger")]
 pub extern fn raw_value_integer(p0: NativeValue) -> i64;
 
-#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "GomlBind_raw_value_kind")]
+#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "ValueKind")]
 pub extern fn raw_value_kind(p0: NativeValue) -> isize;
 
-#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "GomlBind_raw_value_real")]
+#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "ValueReal")]
 pub extern fn raw_value_real(p0: NativeValue) -> f64;
 
-#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "GomlBind_raw_value_text")]
+#[go_ffi("example.com/goml-ecosystem/postgres/adapter", "ValueText")]
 pub extern fn raw_value_text(p0: NativeValue) -> ffi::String;

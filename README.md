@@ -153,6 +153,10 @@ maps to `Busy`; an explicit control's timeout/cancellation maps to `Timeout` or
 `Cancelled`. When a connection-closed cause is also present, `Closed` takes
 precedence over timeout/cancellation; the native error chain retains both causes.
 
+The explicit declarations in `bindings/bindings.goml` call `adapter/` directly.
+Keep their signatures aligned with the Go functions; GoML trusts these declarations
+and the final Go build validates native compatibility.
+
 ## Verification
 
 Go 1.26 and the source-built GoML toolchain with unversioned registry support pinned in [workflows/ci/toolchain.json](https://github.com/gomlang/workflows/blob/main/ci/toolchain.json) are the validation baseline. No toolchain modifications
@@ -167,8 +171,6 @@ SQLite adapter reached through the SQL library and the independent fixture.
 
 ```sh
 python3 ../workflows/ci/ecosystem.py native --libraries .. --module postgres
-# Recreate the checked-in bridge from its explicit allowlist.
-goml bind-go bindings.json
 python3 scripts/with-postgres.py go test ./adapter -count=1
 python3 scripts/with-postgres.py go test -race ./adapter -count=1
 # GOML_HOME must resolve the ecosystem::sql dependency and native mapping.
